@@ -7,6 +7,7 @@
 #include "MantidKernel/System.h"
 #include "MantidMDEvents/MDEventWorkspace.h"
 #include "MantidAPI/CompositeFunction.h"
+#include "MantidDataObjects/Workspace2D.h"
 
 namespace Mantid
 {
@@ -54,7 +55,9 @@ namespace MDAlgorithms
     /// Check if peaks overlap
     void checkOverlap(int i,
     		Mantid::DataObjects::PeaksWorkspace_sptr peakWS, int CoordinatesToUse, double radius);
-
+    void fitProfile(int i, signal_t& signal, signal_t& errorSquared, double& background_total, DataObjects::Workspace2D_sptr wsProfile2D,
+      		DataObjects::Workspace2D_sptr wsFit2D, DataObjects::Workspace2D_sptr wsDiff2D, std::string profileFunction, size_t numSteps, std::ofstream& out,
+      		std::string integrationOption, size_t peakMin, size_t peakMax);
   };
 
 

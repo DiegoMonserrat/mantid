@@ -300,7 +300,7 @@ namespace MDAlgorithms
 // parallelizing at this level is only marginally useful, giving about a 
 // 5-10% speedup.  Perhaps is should just be removed permanantly, but for 
 // now it is commented out to avoid the seg faults.  Refs #5533
-//PRAGMA_OMP(parallel for schedule(dynamic, 10) )
+    PRAGMA_OMP(parallel for num_threads(8) schedule(dynamic, 10) )
     for (int i=0; i < peakWS->getNumberPeaks(); ++i)
     {
       // Get a direct ref to that peak.
@@ -497,112 +497,8 @@ namespace MDAlgorithms
 
 			if (profileFunction.compare("NoFit") != 0)
 			{
-			    API::IAlgorithm_sptr findpeaks = createChildAlgorithm("FindPeaks", -1, -1, false);
-			    findpeaks->setProperty("InputWorkspace", wsProfile2D);
-			    findpeaks->setProperty<int>("FWHM",7);
-			    findpeaks->setProperty<int>("Tolerance",4);
-			    // FindPeaks will do the checking on the validity of WorkspaceIndex
-			    findpeaks->setProperty("WorkspaceIndex",static_cast<int>(i));
-
-			    //Get the specified peak positions, which is optional
-			    findpeaks->setProperty<std::string>("PeakFunction", profileFunction);
-			    // FindPeaks will use linear or flat if they are better
-			    findpeaks->setProperty<std::string>("BackgroundType", "Quadratic");
-			    findpeaks->setProperty<bool>("HighBackground", true);
-			    findpeaks->setProperty<bool>("RawPeakParameters", true);
-			    std::vector<double> peakPosToFit;
-			    peakPosToFit.push_back(static_cast<double>(numSteps/2));
-			    findpeaks->setProperty("PeakPositions",peakPosToFit);
-			    findpeaks->setProperty<int>("MinGuessedPeakWidth",4);
-			    findpeaks->setProperty<int>("MaxGuessedPeakWidth",4);
-			    try
-			    {
-			    	findpeaks->executeAsChildAlg();
-			    } catch (...)
-			    {
-			    	g_log.error("Can't execute FindPeaks algorithm");
-			    	continue;
-			    }
-
-
-				API::ITableWorkspace_sptr paramws = findpeaks->getProperty("PeaksList");
-				if(paramws->rowCount() < 1) continue;
-				std::ostringstream fun_str;
-				fun_str << "name="<<profileFunction;
-
-				size_t numcols = paramws->columnCount();
-	            std::vector<std::string> paramsName = paramws->getColumnNames();
-	            std::vector<double> paramsValue;
-	            API::TableRow row = paramws->getRow(0);
-	            int spectrum;
-	            row >> spectrum;
-	            for (size_t j = 1; j < numcols; ++j)
-	            {
-	              double parvalue;
-	              row >> parvalue;
-	              if (j == numcols-4)fun_str << ";name=Quadratic";
-	              //erase f0. or f1.
-	              if (j > 0 && j < numcols-1) fun_str << "," << paramsName[j].erase(0,3) <<"="<<parvalue;
-	              paramsValue.push_back(parvalue);
-	            }
-	            if (i == 0)
-	            {
-	            	for (size_t j = 0; j < numcols; ++j)out << std::setw( 20 ) << paramsName[j] <<" " ;
-	            	out << "\n";
-	            }
-				out << std::setw( 20 ) << i;
-				for (size_t j = 0; j < numcols-1; ++j)out << std::setw( 20 ) << std::fixed << std::setprecision( 10 ) << paramsValue[j] << " " ;
-				out << "\n";
-
-
-				//Evaluate fit at points
-
-				IFunction_sptr ifun = FunctionFactory::Instance().createInitialized(fun_str.str());
-				boost::shared_ptr<const CompositeFunction> fun = boost::dynamic_pointer_cast<const CompositeFunction>(ifun);
-				const Mantid::MantidVec& x = wsProfile2D->readX(i);
-				wsFit2D->dataX(i) = x;
-				wsDiff2D->dataX(i) = x;
-				FunctionDomain1DVector domain(x);
-				FunctionValues yy(domain);
-				fun->function(domain, yy);
-				const Mantid::MantidVec& yValues = wsProfile2D->readY(i);
-				for (size_t j = 0; j < numSteps; j++)
-				{
-					wsFit2D->dataY(i)[j] = yy[j];
-					wsDiff2D->dataY(i)[j] = yValues[j] - yy[j];
-				}
-
-				//Calculate intensity
-				signal = 0.0;
-				if (integrationOption.compare("Sum") == 0)
-				{
-					for (size_t j = 0; j < numSteps; j++) if ( !boost::math::isnan(yy[j]) && !boost::math::isinf(yy[j]))signal+= yy[j];
-				}
-				else
-				{
-					gsl_integration_workspace * w
-					 = gsl_integration_workspace_alloc (1000);
-
-					double error;
-
-					gsl_function F;
-					F.function = &Mantid::MDAlgorithms::f_eval2;
-					F.params = &fun;
-
-					gsl_integration_qags (&F, x[0], x[numSteps-1], 0, 1e-7, 1000,
-										 w, &signal, &error);
-
-					gsl_integration_workspace_free (w);
-				}
-				errorSquared = std::fabs(signal);
-				// Get background counts
-				for (size_t j = 0; j < numSteps; j++)
-				{
-					//paramsValue[numcols-2] is chisq
-					double background = paramsValue[numcols-3] * x[j] * x[j] + paramsValue[numcols-4] * x[j] + paramsValue[numcols-5];
-					if (j < peakMin || j > peakMax)
-						background_total = background_total + background;
-				}
+				fitProfile (i, signal, errorSquared, background_total, wsProfile2D, wsFit2D, wsDiff2D,
+						profileFunction, numSteps, out, integrationOption, peakMin, peakMax);
 			}
       	  }
           checkOverlap (i, peakWS, CoordinatesToUse,
@@ -720,6 +616,117 @@ namespace MDAlgorithms
 			  }
 	    }
   }
+  void IntegratePeaksMD2::fitProfile(int i, signal_t& signal, signal_t& errorSquared, double& background_total, Workspace2D_sptr wsProfile2D,
+  		Workspace2D_sptr wsFit2D, Workspace2D_sptr wsDiff2D, std::string profileFunction, size_t numSteps, std::ofstream& out,
+  		std::string integrationOption, size_t peakMin, size_t peakMax)
+  {
+  API::IAlgorithm_sptr findpeaks = createChildAlgorithm("FindPeaks", -1, -1, false);
+  findpeaks->setProperty("InputWorkspace", wsProfile2D);
+  findpeaks->setProperty<int>("FWHM",7);
+  findpeaks->setProperty<int>("Tolerance",4);
+  // FindPeaks will do the checking on the validity of WorkspaceIndex
+  findpeaks->setProperty("WorkspaceIndex",static_cast<int>(i));
+
+  //Get the specified peak positions, which is optional
+  findpeaks->setProperty<std::string>("PeakFunction", profileFunction);
+  // FindPeaks will use linear or flat if they are better
+  findpeaks->setProperty<std::string>("BackgroundType", "Quadratic");
+  findpeaks->setProperty<bool>("HighBackground", true);
+  findpeaks->setProperty<bool>("RawPeakParameters", true);
+  std::vector<double> peakPosToFit;
+  peakPosToFit.push_back(static_cast<double>(numSteps/2));
+  findpeaks->setProperty("PeakPositions",peakPosToFit);
+  findpeaks->setProperty<int>("MinGuessedPeakWidth",4);
+  findpeaks->setProperty<int>("MaxGuessedPeakWidth",4);
+  try
+  {
+  	findpeaks->executeAsChildAlg();
+  } catch (...)
+  {
+  	g_log.error("Can't execute FindPeaks algorithm");
+  	return;
+  }
+
+
+	API::ITableWorkspace_sptr paramws = findpeaks->getProperty("PeaksList");
+	if(paramws->rowCount() < 1) return;
+	std::ostringstream fun_str;
+	fun_str << "name="<<profileFunction;
+
+	size_t numcols = paramws->columnCount();
+  std::vector<std::string> paramsName = paramws->getColumnNames();
+  std::vector<double> paramsValue;
+  API::TableRow row = paramws->getRow(0);
+  int spectrum;
+  row >> spectrum;
+  for (size_t j = 1; j < numcols; ++j)
+  {
+    double parvalue;
+    row >> parvalue;
+    if (j == numcols-4)fun_str << ";name=Quadratic";
+    //erase f0. or f1.
+    if (j > 0 && j < numcols-1) fun_str << "," << paramsName[j].erase(0,3) <<"="<<parvalue;
+    paramsValue.push_back(parvalue);
+  }
+  if (i == 0)
+  {
+  	for (size_t j = 0; j < numcols; ++j)out << std::setw( 20 ) << paramsName[j] <<" " ;
+  	out << "\n";
+  }
+	out << std::setw( 20 ) << i;
+	for (size_t j = 0; j < numcols-1; ++j)out << std::setw( 20 ) << std::fixed << std::setprecision( 10 ) << paramsValue[j] << " " ;
+	out << "\n";
+
+
+	//Evaluate fit at points
+
+	IFunction_sptr ifun = FunctionFactory::Instance().createInitialized(fun_str.str());
+	boost::shared_ptr<const CompositeFunction> fun = boost::dynamic_pointer_cast<const CompositeFunction>(ifun);
+	const Mantid::MantidVec& x = wsProfile2D->readX(i);
+	wsFit2D->dataX(i) = x;
+	wsDiff2D->dataX(i) = x;
+	FunctionDomain1DVector domain(x);
+	FunctionValues yy(domain);
+	fun->function(domain, yy);
+	const Mantid::MantidVec& yValues = wsProfile2D->readY(i);
+	for (size_t j = 0; j < numSteps; j++)
+	{
+		wsFit2D->dataY(i)[j] = yy[j];
+		wsDiff2D->dataY(i)[j] = yValues[j] - yy[j];
+	}
+
+	//Calculate intensity
+	signal = 0.0;
+	if (integrationOption.compare("Sum") == 0)
+	{
+		for (size_t j = 0; j < numSteps; j++) if ( !boost::math::isnan(yy[j]) && !boost::math::isinf(yy[j]))signal+= yy[j];
+	}
+	else
+	{
+		gsl_integration_workspace * w
+		 = gsl_integration_workspace_alloc (1000);
+
+		double error;
+
+		gsl_function F;
+		F.function = &Mantid::MDAlgorithms::f_eval2;
+		F.params = &fun;
+
+		gsl_integration_qags (&F, x[0], x[numSteps-1], 0, 1e-7, 1000,
+							 w, &signal, &error);
+
+		gsl_integration_workspace_free (w);
+	}
+	errorSquared = std::fabs(signal);
+	// Get background counts
+	for (size_t j = 0; j < numSteps; j++)
+	{
+		//paramsValue[numcols-2] is chisq
+		double background = paramsValue[numcols-3] * x[j] * x[j] + paramsValue[numcols-4] * x[j] + paramsValue[numcols-5];
+		if (j < peakMin || j > peakMax)
+			background_total = background_total + background;
+	}
+}
   //----------------------------------------------------------------------------------------------
   /** Execute the algorithm.
    */
