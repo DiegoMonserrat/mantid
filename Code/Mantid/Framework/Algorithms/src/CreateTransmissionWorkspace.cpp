@@ -80,12 +80,12 @@ namespace Mantid
       declareProperty(
           new WorkspaceProperty<MatrixWorkspace>("FirstTransmissionRun", "", Direction::Input,
               PropertyMode::Mandatory, inputValidator->clone()),
-          "First transmission run, or the low wavelength transmision run if SecondTransmissionRun is also provided.");
+          "First transmission run, or the low wavelength transmision run (TOF) if SecondTransmissionRun is also provided.");
 
       declareProperty(
           new WorkspaceProperty<MatrixWorkspace>("SecondTransmissionRun", "", Direction::Input,
               PropertyMode::Optional, inputValidator->clone()),
-          "Second, high wavelength transmission run. Optional. Causes the InputWorkspace to be treated as the low wavelength transmission run.");
+          "Second, high wavelength transmission run (TOF). Optional. Causes the InputWorkspace to be treated as the low wavelength transmission run.");
 
       this->initStitchingInputs();
       this->initIndexInputs();

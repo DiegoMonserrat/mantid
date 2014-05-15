@@ -24,7 +24,7 @@ class CreateTransmissionWorkspaceAuto(DataProcessorAlgorithm):
     def PyInit(self):
     
         self.setOptionalMessage("Creates a transmission run workspace in Wavelength from input TOF workspaces.")
-        self.setWikiSummary("Creates a transmission run workspace in Wavelength from input TOF workspaces. See [[Reflectometry_Guide]]")
+        self.setWikiSummary("Creates a transmission run workspace in Wavelength from input TOF workspaces.")
         
         analysis_modes = ["PointDetectorAnalysis", "MultiDetectorAnalysis"]
         analysis_mode_validator = StringListValidator(analysis_modes)

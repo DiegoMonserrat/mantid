@@ -1,7 +1,7 @@
 import unittest
 import mantid.api
 import abc
-from mantid.simpleapi import CreateWorkspace, DeleteWorkspace, Load
+from mantid.simpleapi import CreateWorkspace, DeleteWorkspace, Load, ConvertUnits, Rebin
 from testhelpers.algorithm_decorator import make_decorator
 
 import inspect
@@ -52,7 +52,7 @@ class CreateTransmissionWorkspaceBaseTest(object):
         alg.set_SecondTransmissionRun(self.__tof)
         self.assertRaises(Exception, alg.execute)
         
-    def test_provide_second_transmission_run_without_start_overlap_q_throws(self):
+    def test_provide_second_transmission_run_without_start_overlap_q_throws(self): 
         alg = self.construct_standard_algorithm()
         alg.set_SecondTransmissionRun(self.__tof)
         alg.set_Params([0, 0.1, 1])
@@ -198,4 +198,55 @@ class CreateTransmissionWorkspaceBaseTest(object):
         DeleteWorkspace(trans_run1)
         DeleteWorkspace(trans_run2)
         DeleteWorkspace(transmission_ws)
+        
+    def crop_in_wavelength(self, params, ws):
+        ws = ConvertUnits(ws, 'Wavelength', OutputWorkspace=ws.name())
+        ws = Rebin(ws, Params=params, OutputWorkspace=ws.name())
+        ws = ConvertUnits(ws, 'TOF', OutputWorkspace=ws.name())
+        x = ws.readX(0)
+        ws = Rebin(ws, Params=[x[0], x[1] - x[0], x[-1]], OutputWorkspace=ws.name())
+        return ws    
+        
+    def test_execute_two_tranmissions_default_start_overlap(self):
+        alg = make_decorator(self.algorithm_type())
+        
+        trans_run1 = Load('INTER00013463.nxs')
+        trans_run1 = self.crop_in_wavelength([1, 0.02, 10], trans_run1)
+        trans_run2 = Load('INTER00013464.nxs')
+        trans_run2 = self.crop_in_wavelength([9, 0.02, 15], trans_run2)
+        
+        alg.set_ProcessingInstructions("3,4")
+        alg.set_FirstTransmissionRun(trans_run1) 
+        alg.set_SecondTransmissionRun(trans_run2)
+        alg.set_I0MonitorIndex(0)
+        alg.set_WavelengthMin(0.0)
+        alg.set_WavelengthMax(17.9)
+        alg.set_WavelengthStep(0.5)
+        alg.set_MonitorBackgroundWavelengthMin(15.0)
+        alg.set_MonitorBackgroundWavelengthMax(17.0)
+        alg.set_MonitorIntegrationWavelengthMin(4.0)
+        alg.set_MonitorIntegrationWavelengthMax(10.0)
+        alg.set_Params([1.5, 0.02, 17])
+        alg.set_StartOverlap( 10.0 )
+        alg.set_EndOverlap( 12.0 )
+        
+        transmission_ws = alg.execute()
+        
+        self.assertTrue(isinstance(transmission_ws, mantid.api.MatrixWorkspace), "Should be a matrix workspace")
+        self.assertEqual("Wavelength", transmission_ws.getAxis(0).getUnit().unitID())
+        
+        # Because we have two transmission workspaces, binning should come from the Params for stitching.
+        x = transmission_ws.readX(0)
+        actual_binning = x[1] - x[0]
+        params = alg.get_Params()
+        self.assertAlmostEqual( actual_binning, params[1], 6)
+        self.assertAlmostEqual( 1.5, params[0], 6)
+        self.assertAlmostEqual( 17, params[2], 6)
+        
+        DeleteWorkspace(trans_run1)
+        DeleteWorkspace(trans_run2)
+        DeleteWorkspace(transmission_ws)
+        
+        
+    
             

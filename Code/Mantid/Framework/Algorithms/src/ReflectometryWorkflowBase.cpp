@@ -244,31 +244,37 @@ namespace Mantid
         else
         {
           throw std::invalid_argument(
-                      "A SecondTransmissionRun is only valid if a FirstTransmissionRun is provided.");
+              "A SecondTransmissionRun is only valid if a FirstTransmissionRun is provided.");
         }
-      }  
+      }
       else
       {
-        if (isPropertyDefault("Params"))
+
+         if (isPropertyDefault("Params"))
+         {
+         throw std::invalid_argument(
+         "If a SecondTransmissionRun has been given, then stitching Params for the transmission runs are also required.");
+         }
+         /*
+         if (isPropertyDefault("StartOverlap"))
+         {
+         throw std::invalid_argument(
+         "If a SecondTransmissionRun has been given, then a stitching StartOverlap for the transmission runs is also required.");
+         }
+         if (isPropertyDefault("EndOverlap"))
+         {
+         throw std::invalid_argument(
+         "If a SecondTransmissionRun has been given, then a stitching EndOverlap for the transmission runs is also required.");
+         }
+         */
+        if (!isPropertyDefault("StartOverlap") && !isPropertyDefault("EndOverlap"))
         {
-          throw std::invalid_argument(
-              "If a SecondTransmissionRun has been given, then stitching Params for the transmission runs are also required.");
-        }
-        if (isPropertyDefault("StartOverlap"))
-        {
-          throw std::invalid_argument(
-              "If a SecondTransmissionRun has been given, then a stitching StartOverlap for the transmission runs is also required.");
-        }
-        if (isPropertyDefault("EndOverlap"))
-        {
-          throw std::invalid_argument(
-              "If a SecondTransmissionRun has been given, then a stitching EndOverlap for the transmission runs is also required.");
-        }
-        const double startOverlap = this->getProperty("StartOverlap");
-        const double endOverlap = this->getProperty("EndOverlap");
-        if (startOverlap >= endOverlap)
-        {
-          throw std::invalid_argument("EndOverlap must be > StartOverlap");
+          const double startOverlap = this->getProperty("StartOverlap");
+          const double endOverlap = this->getProperty("EndOverlap");
+          if (startOverlap >= endOverlap)
+          {
+            throw std::invalid_argument("EndOverlap must be > StartOverlap");
+          }
         }
 
         if (!isPropertyDefault("SecondTransmissionRun"))
@@ -278,7 +284,7 @@ namespace Mantid
 
           auto firstMap = trans1->getSpectrumToWorkspaceIndexMap();
           auto secondMap = trans2->getSpectrumToWorkspaceIndexMap();
-          if (firstMap != secondMap)
+          if (firstMap != secondMap) // TODO add StrictSpectrum check option.
           {
             throw std::invalid_argument(
                 "Spectrum maps differ between the transmission runs. They must be the same.");
