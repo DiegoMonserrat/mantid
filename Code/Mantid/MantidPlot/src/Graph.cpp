@@ -3444,16 +3444,9 @@ PlotCurve* Graph::insertCurve(PlotCurve* c, int lineWidth, int curveType)
       g_log.warning("Unable to determine axis units of target graph!");
     }
 
-    if ( m_isDistribution )
+    if ( m_isDistribution != mc->isDistribution() )
     {
-      if ( m_isDistribution != mc->isDistribution() )
-      {
-        g_log.warning("You are overlaying distribution and non-distribution data!");
-      }
-    }
-    else
-    {
-      g_log.warning("Unable to determine if target graph contains distribution data!");
+      g_log.warning("You are overlaying distribution and non-distribution data!");
     }
   }
 
