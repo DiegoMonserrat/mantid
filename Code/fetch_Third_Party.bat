@@ -7,11 +7,11 @@
 @echo off
 
 :: Check for git. Older versions used %GitCmd%, newer just git. The older versions still 
-:: have git.exe but it should be called through git.cmd so git.cmd check is first
-echo Checking for git.cmd
-for %%X in (git.cmd) do (set FOUND=%%~$PATH:X)
+:: have git.exe but it should be called through git so git check is first
+echo Checking for git
+for %%X in (git) do (set FOUND=%%~$PATH:X)
 if defined FOUND (
-  set GitCmd=git.cmd
+  set GitCmd=git
 ) else (
     echo Not Found. Checking for git.exe
     for %%X in (git.exe) do (set FOUND=%%~$PATH:X)
@@ -19,7 +19,7 @@ if defined FOUND (
         set GitCmd=git.exe
     ) else (
         echo Cannot find git. Make sure the cmd folder is in your path.
-        exit /B 1
+        PAUSE
     )
 )
 echo Using %GitCmd%
@@ -52,7 +52,7 @@ if NOT "%1"=="" (
       set arch=win32
     ) else (
      echo "Unknown architecture. Valid options are:win32,win64."
-      exit /B 1
+     PAUSE
     )
   )
 )
@@ -81,7 +81,7 @@ echo %libs%
 :: Otherwise we need to clone
 echo Cloning Third_Party libraries from %libs%
 call %GitCmd% clone %libs% Third_Party/lib/%arch%
-exit /B 0
+PAUSE
 
 :: Just making sure what we have is up to date
 :UpdateInc
@@ -98,4 +98,4 @@ cd Third_Party/lib/%arch%
 call %GitCmd% pull
 :: Be sure to end up back where we started
 cd ../../..
-exit /B 0
+PAUSE
