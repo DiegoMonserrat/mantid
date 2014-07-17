@@ -16,4 +16,22 @@ The Units axis is defined with *empty* units. The main purpose of this loader is
 
 To date this algorithm only supports: IN16B
 
+Usage
+-----
+
+**Example - Load ILL IN16B NeXus file:**
+
+.. testcode:: Ex
+
+   # Load ILL IN16B data file into a workspace 2D.
+   ws = Load('<ILL IN16B data file>')
+
+   print "This workspace has", ws.getNumDims(), "dimensions and has", ws.getNumberHistograms(), "histograms."
+
+Output:
+
+.. testoutput:: Ex
+	
+	This workspace has 2 dimensions and has 2057 histograms.
+
 .. categories::
