@@ -9,26 +9,7 @@
 Description
 -----------
 
-Loads an ILL D33 NeXus file into a `Workspace2D <http://www.mantidproject.org/Workspace2D>`_ with
+Loads an ILL D33 nexus file into a `Workspace2D <http://www.mantidproject.org/Workspace2D>`_ with
 the given name.
-
-This loader reads the detector positions from the NeXus file and places all the five detectors (front and back) at the right positions.
-It supports both TOF and non TOF modes.
-
-**Example - Load ILL D33 NeXus file:**
-
-.. testcode:: Ex
-
-   # Load ILL D33 data file into a workspace 2D.
-   ws = Load('<ILL D33 data file>')
-
-   print "This workspace has", ws.getNumDims(), "dimensions and has", ws.getNumberHistograms(), "histograms."
-
-Output:
-
-.. testoutput:: Ex
-	
-	This workspace has 2 dimensions and has 65538 histograms.
-
 
 .. categories::
