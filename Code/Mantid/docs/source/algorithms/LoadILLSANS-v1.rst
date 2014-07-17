@@ -15,6 +15,9 @@ the given name.
 This loader reads the detector positions from the NeXus file and places all the five detectors (front and back) at the right positions.
 It supports both TOF and non TOF modes.
 
+Usage
+-----
+
 **Example - Load ILL D33 NeXus file:**
 
 .. testcode:: Ex
