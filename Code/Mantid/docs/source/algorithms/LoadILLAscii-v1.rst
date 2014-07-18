@@ -17,13 +17,15 @@ Supported instruments : ILL D2B
 Usage
 -----
 
+.. include:: ../usagedata-note.txt
+
 **Example - Load ILL D2B Ascii file:**
 (see :ref:`algm-LoadILLAscii` for more options)
 
 .. testcode:: Ex
 
    # Load ILL D2B data file into a Multi dimensional workspace.
-   ws = Load('<ILL D2B data file>')
+   ws = Load('ILLD2B_121459.txt')
 
    print "This workspace has", ws.getNumDims(), "dimensions and", ws.getNEvents(), "events."
 
@@ -31,6 +33,6 @@ Output:
 
 .. testoutput:: Ex
 
-   This workspace has 3 dimensions and 409600 events.
+	This workspace has 3 dimensions and 409600 events.
 
 .. categories::
