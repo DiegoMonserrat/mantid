@@ -42,6 +42,8 @@ Description          : General plot options dialog
 #include "ScaleDraw.h"
 #include <float.h>
 
+#include "MantidKernel/Logger.h"
+
 #include <QCheckBox>
 #include <QComboBox>
 #include <QLabel>
@@ -622,7 +624,11 @@ static const char* image7_data[] = { "32 32 4 1", "# c #000000", "b c #bfbfbf",
 #ifndef M_PI
 #define M_PI	3.141592653589793238462643
 #endif
-//Mantid::Kernel::Logger & AxesDialog::g_log=Mantid::Kernel::Logger::get("AxesDialog");
+
+namespace
+{
+  Mantid::Kernel::Logger g_log("AxisDialog");
+}
 
 ///////////////////
 // Public Functions
@@ -649,6 +655,17 @@ AxesDialog::AxesDialog(ApplicationWindow* app, Graph* g, Qt::WFlags fl) :
   initAxesPage();
   initGridPage();
   initGeneralPage();
+
+  //Connect scale details to axis details in order to diable scale options when an axis is not shown
+  auto scaleIter = m_Scale_list.begin();
+  auto axisIter = m_Axis_list.begin();
+  while((scaleIter != m_Scale_list.end()) && (axisIter != m_Axis_list.end()))
+  {
+    connect(*axisIter, SIGNAL(axisShowChanged(bool)), *scaleIter, SLOT(axisEnabled(bool)));
+
+    ++scaleIter;
+    ++axisIter;
+  }
 
   QHBoxLayout * bottomButtons = new QHBoxLayout();
   bottomButtons->addStretch();
@@ -679,7 +696,6 @@ AxesDialog::AxesDialog(ApplicationWindow* app, Graph* g, Qt::WFlags fl) :
 
 AxesDialog::~AxesDialog()
 {
-
 }
 
 /**Applies changes then closes the dialog
@@ -1205,6 +1221,7 @@ bool AxesDialog::pressToGraph()
   {
     if(!((*axisItr)->valid()))
     {
+      g_log.warning("Axis options are invalid!");
       return false;
     }
   }
@@ -1213,6 +1230,7 @@ bool AxesDialog::pressToGraph()
   {
     if(!((*scaleItr)->valid()))
     {
+      g_log.warning("Scale options are invalid!");
       return false;
     }
   }

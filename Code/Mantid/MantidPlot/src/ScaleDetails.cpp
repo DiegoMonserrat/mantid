@@ -11,6 +11,8 @@
 #include "Plot.h"
 #include "plot2D/ScaleEngine.h"
 
+#include "MantidKernel/Logger.h"
+
 #include <QWidget>
 #include <QSpinBox>
 #include <QCheckBox>
@@ -33,6 +35,11 @@
 #include <ColorButton.h>
 #include <QFontDialog>
 
+namespace
+{
+  Mantid::Kernel::Logger g_log("ScaleDetails");
+}
+
 /** The constructor for a single set of widgets containing parameters for the scale of an axis.
 *  @param app :: the containing application window
 *  @param graph :: the graph the dialog is settign the options for
@@ -50,11 +57,13 @@ ScaleDetails::ScaleDetails(ApplicationWindow* app, Graph* graph, int mappedaxis,
   QGroupBox * middleBox = new QGroupBox(QString());
   QGridLayout * middleLayout = new QGridLayout(middleBox);
 
-  middleLayout->addWidget(new QLabel(tr("From")), 0, 0);
+  m_lblStart = new QLabel(tr("From"));
+  middleLayout->addWidget(m_lblStart, 0, 0);
   m_dspnStart = new DoubleSpinBox();
   m_dspnStart->setLocale(m_app->locale());
-  m_dspnStart->setDecimals(m_app->d_decimal_digits);
+  m_dspnStart->setDecimals(m_app->d_graphing_digits);
   middleLayout->addWidget(m_dspnStart, 0, 1);
+  connect(m_dspnStart, SIGNAL(valueChanged(double)), this, SLOT(recalcStepMin()));
 
   m_dteStartDateTime = new QDateTimeEdit();
   m_dteStartDateTime->setCalendarPopup(true);
@@ -65,11 +74,13 @@ ScaleDetails::ScaleDetails(ApplicationWindow* app, Graph* graph, int mappedaxis,
   middleLayout->addWidget(m_timStartTime, 0, 1);
   m_timStartTime->hide();
 
-  middleLayout->addWidget(new QLabel(tr("To")), 1, 0);
+  m_lblEnd = new QLabel(tr("To"));
+  middleLayout->addWidget(m_lblEnd, 1, 0);
   m_dspnEnd = new DoubleSpinBox();
   m_dspnEnd->setLocale(m_app->locale());
-  m_dspnEnd->setDecimals(m_app->d_decimal_digits);
+  m_dspnEnd->setDecimals(m_app->d_graphing_digits);
   middleLayout->addWidget(m_dspnEnd, 1, 1);
+  connect(m_dspnStart, SIGNAL(valueChanged(double)), this, SLOT(recalcStepMin()));
 
   m_dteEndDateTime = new QDateTimeEdit();
   m_dteEndDateTime->setCalendarPopup(true);
@@ -128,6 +139,9 @@ ScaleDetails::ScaleDetails(ApplicationWindow* app, Graph* graph, int mappedaxis,
 
   breaksLayout->addWidget(new QLabel(tr("Step Before Break")), 1, 2);
   m_dspnStepBeforeBreak = new DoubleSpinBox();
+  m_dspnStepBeforeBreak->addSpecialTextMapping("Guess", 0.0);
+  m_dspnStepBeforeBreak->addSpecialTextMapping("guess", 0.0);
+  m_dspnStepBeforeBreak->addSpecialTextMapping("GUESS", 0.0);
   m_dspnStepBeforeBreak->setMinimum(0.0);
   m_dspnStepBeforeBreak->setSpecialValueText(tr("Guess"));
   m_dspnStepBeforeBreak->setLocale(m_app->locale());
@@ -136,6 +150,9 @@ ScaleDetails::ScaleDetails(ApplicationWindow* app, Graph* graph, int mappedaxis,
 
   breaksLayout->addWidget(new QLabel(tr("Step After Break")), 2, 2);
   m_dspnStepAfterBreak = new DoubleSpinBox();
+  m_dspnStepAfterBreak->addSpecialTextMapping("Guess", 0.0);
+  m_dspnStepAfterBreak->addSpecialTextMapping("guess", 0.0);
+  m_dspnStepAfterBreak->addSpecialTextMapping("GUESS", 0.0);
   m_dspnStepAfterBreak->setMinimum(0.0);
   m_dspnStepAfterBreak->setSpecialValueText(tr("Guess"));
   m_dspnStepAfterBreak->setLocale(m_app->locale());
@@ -209,11 +226,11 @@ ScaleDetails::ScaleDetails(ApplicationWindow* app, Graph* graph, int mappedaxis,
   connect(m_radMajor, SIGNAL(clicked()), this, SLOT(radiosSwitched()));
 
   initWidgets();
+  recalcStepMin();
 }
 
 ScaleDetails::~ScaleDetails()
 {
-
 }
 
 /** Initialisation method. Sets up all widgets and variables not done in the constructor.
@@ -408,12 +425,57 @@ void ScaleDetails::initWidgets()
   }
 }
 
+/**
+ * Enabled or disables the scale controls for the axis.
+ *
+ * @param enabled If the controls should be enabled or disabled
+ */
+void ScaleDetails::axisEnabled(bool enabled)
+{
+  //Stuff the is always enabled when the axis is shown
+  m_dspnStart->setEnabled(enabled);
+  m_dspnEnd->setEnabled(enabled);
+  m_cmbScaleType->setEnabled(enabled);
+  m_chkInvert->setEnabled(enabled);
+  m_radStep->setEnabled(enabled);
+  m_radMajor->setEnabled(enabled);
+  m_grpAxesBreaks->setEnabled(enabled);
+  m_cmbMinorValue->setEnabled(enabled);
+  m_lblStart->setEnabled(enabled);
+  m_lblEnd->setEnabled(enabled);
+  m_lblMinorBox->setEnabled(enabled);
+  m_lblScaleTypeLabel->setEnabled(enabled);
+
+  //Stuff that is only enabled when the axis is shown and axis breaks are enabled
+  bool enableAxisBreaks = enabled && m_grpAxesBreaks->isChecked();
+  m_dspnBreakStart->setEnabled(enableAxisBreaks);
+  m_dspnBreakEnd->setEnabled(enableAxisBreaks);
+  m_spnBreakPosition->setEnabled(enableAxisBreaks);
+  m_spnBreakWidth->setEnabled(enableAxisBreaks);
+  m_dspnStepBeforeBreak->setEnabled(enableAxisBreaks);
+  m_dspnStepAfterBreak->setEnabled(enableAxisBreaks);
+  m_cmbMinorTicksBeforeBreak->setEnabled(enableAxisBreaks);
+  m_cmbMinorTicksAfterBreak->setEnabled(enableAxisBreaks);
+
+  bool majorTicks = enabled && m_radMajor->isChecked();
+  m_spnMajorValue->setEnabled(majorTicks);
+
+  bool minorTicks = enabled && m_radStep->isChecked();
+  m_dspnStep->setEnabled(minorTicks);
+}
+
 /** Checks to see if this axis has valid parameters
 *
 */
 bool ScaleDetails::valid()
 {
-  return m_initialised && m_app && m_graph && !(m_dspnStart->value() >= m_dspnEnd->value());
+  if(m_radStep->isChecked() && (m_dspnStep->value() < m_dspnStep->getMinimum()))
+    return false;
+
+  return  m_initialised &&
+          m_app &&
+          m_graph &&
+          !(m_dspnStart->value() >= m_dspnEnd->value());
 }
 
 /** Applies this axis' parameters to the graph
@@ -551,4 +613,14 @@ void ScaleDetails::checkstep()
     m_radMajor->setChecked(true);
     m_spnMajorValue->setEnabled(true);
   }
+}
+
+/**
+ * Recalculates the minimum value allowed in step to stop too many labels being rendered
+ */
+void ScaleDetails::recalcStepMin()
+{
+  double range = m_dspnEnd->value() - m_dspnStart->value();
+  double minStep = range / 20;
+  m_dspnStep->setMinimum(minStep);
 }
