@@ -21,4 +21,80 @@ be loaded from the Vanadium data.
 
 To date this algorithm only supports: IN4, IN5 and IN6
 
+Usage
+-----
+
+.. include:: ../usagedata-note.txt
+
+**Example - Load a regular histogram Nexus file:**
+(see :ref:`algm-LoadILL` for more options)
+
+.. testcode:: LoadILLEx1
+
+   # Regular data file.
+   dataRegular = 'ILLIN6_151460.nxs'
+
+   # Load ILL dataset
+   ws = Load(dataRegular)
+
+   print "This workspace has", ws.getNumDims(), "dimensions and has", ws.getNumberHistograms(), "histograms."
+
+Output:
+
+.. testoutput:: LoadILLEx1
+
+   This workspace has 2 dimensions and has 340 histograms.
+
+
+
+**Example - Load a histogram Nexus file where the dispersion peak is higher than the elastic peak.
+An auxiliary vanadium file is needed to locate the elastic peak.:**
+(see :ref:`algm-LoadILL` for more options)
+
+.. testcode:: LoadILLEx2
+
+   # Data file where the dispersion peak is higher than the elastic peak.
+   dataDispersionPeak = 'ILLIN5_Sample_096003.nxs'
+
+   # Vanadium file collected in the same conditions as the dispersion peak dataset.
+   vanaDispersionPeak = 'ILLIN5_Vana_095893.nxs'
+
+   # Load ILL dispersion peak dataset and a vanadium dataset
+   ws = Load(dataDispersionPeak, FilenameVanadium=vanaDispersionPeak)
+
+   print "This workspace has", ws.getNumDims(), "dimensions and has", ws.getNumberHistograms(), "histograms."
+
+Output:
+
+.. testoutput:: LoadILLEx2
+
+   This workspace has 2 dimensions and has 98305 histograms.
+
+**Example - Same example as above, but the vanadium file is loaded in advance. The dataset for the dispersion peak is loaded after, using the auxiliary vanadium workspace.:**
+(see :ref:`algm-LoadILL` for more options)
+
+.. testcode:: LoadILLEx3
+
+   # Data file where the dispersion peak is higher than the elastic peak.
+   dataDispersionPeak = 'ILLIN5_Sample_096003.nxs'
+
+   # Vanadium file collected in the same conditions as the dispersion peak dataset.
+   vanaDispersionPeak = 'ILLIN5_Vana_095893.nxs'
+
+   # Load the Vanadium
+   wsVana = Load(dataDispersionPeak)
+
+   # Load ILL dispersion peak dataset and a vanadium dataset
+   wsData = Load(dataDispersionPeak, WorkspaceVanadium=wsVana)
+
+   print "The Vanadium workspace has", wsVana.getNumDims(), "dimensions and has", wsVana.getNumberHistograms(), "histograms."
+   print "The Data workspace has", wsData.getNumDims(), "dimensions and has", wsData.getNumberHistograms(), "histograms."
+
+Output:
+
+.. testoutput:: LoadILLEx3
+
+	The Vanadium workspace has 2 dimensions and has 98305 histograms.
+	The Data workspace has 2 dimensions and has 98305 histograms.
+
 .. categories::
